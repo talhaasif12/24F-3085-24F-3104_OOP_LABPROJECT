@@ -9,7 +9,7 @@
 #include <cstdlib>
 #include <stdexcept>
 #include <sstream>
-
+using namespace std;
 class Resource;
 class Population;
 class SocialClass;
@@ -19,7 +19,110 @@ class Military;
 class Leader;
 class Event;
 class Kingdom;
+class GameEngine;
+class Communication;
+class Alliance;
+class Market;
+class Conflict;
+class Map;
+template <typename T> class TradeItem;
 
+// Exception class for Module 2 error handling
+class GameException {
+public:
+    GameException(const string &msg) : message(msg) {}
+    string getMessage() const { return message; }
+private:
+    string message;
+};
+// Module 2 Classes
+template <typename T>
+class TradeItem {
+public:
+    TradeItem() : itemType(""), quantity(0), goldCost(0) {}
+    TradeItem(const std::string& itemType, T quantity, int goldCost)
+        : itemType(itemType), quantity(quantity), goldCost(goldCost) {}
+    std::string getItemType() const { return itemType; }
+    T getQuantity() const { return quantity; }
+    int getGoldCost() const { return goldCost; }
+private:
+    std::string itemType;
+    T quantity;
+    int goldCost;
+};
+
+class Conflict {
+public:
+    Conflict();
+    void declareWar(Kingdom& attacker, Kingdom& defender);
+    void resolveBattle(Kingdom& attacker, Kingdom& defender);
+    void betrayAlly(Kingdom& betrayer, Kingdom& betrayed);
+    bool saveConflictLog(const std::string& filename) const;
+private:
+    struct War {
+        std::string attackerName;
+        std::string defenderName;
+        War() : attackerName(""), defenderName("") {}
+    };
+    War wars[50] = {};
+    int warCount;
+};
+
+
+class Map {
+public:
+    Map(int width, int height);
+    void placeKingdom(Kingdom& kingdom, int x, int y);
+    int getDistance(const Kingdom& kingdom1, const Kingdom& kingdom2) const;
+    void moveKingdom(Kingdom& kingdom, int newX, int newY);
+    void displayMap() const;
+private:
+    struct Position {
+        std::string kingdomName;
+        int x;
+        int y;
+        Position() : kingdomName(""), x(0), y(0) {}
+    };
+    Position positions[10] = {};
+    int positionCount;
+    int width;
+    int height;
+};
+class Communication {
+public:
+    Communication();
+    void sendMessage(const Kingdom& sender, Kingdom& receiver, const std::string& message);
+    void displayMessages(const Kingdom& kingdom) const;
+    bool saveChatLog(const std::string& filename) const;
+private:
+    struct Message {
+        std::string senderName;
+        std::string receiverName;
+        std::string content;
+        Message() : senderName(""), receiverName(""), content("") {}
+    };
+    Message messages[100] = {};
+    int messageCount;
+};
+
+class Alliance {
+public:
+    Alliance();
+    void formAlliance(Kingdom& kingdom1, Kingdom& kingdom2, const std::string& treatyName);
+    void breakAlliance(Kingdom& kingdom1, Kingdom& kingdom2);
+    bool areAllied(const Kingdom& kingdom1, const Kingdom& kingdom2) const;
+    void displayAlliances() const;
+    bool saveTreatyLog(const std::string& filename) const;
+private:
+    struct Treaty {
+        std::string kingdom1Name;
+        std::string kingdom2Name;
+        std::string treatyName;
+        Treaty() : kingdom1Name(""), kingdom2Name(""), treatyName("") {}
+    };
+    Treaty treaties[50] = {};
+    int treatyCount;
+};
 class Resource {
 private:
     std::string name;
@@ -241,7 +344,24 @@ public:
     void saveToFile(std::ofstream& outFile) const;
     void loadFromFile(std::ifstream& inFile);
 };
+class Market {
+public:
+    struct Offer {
+        TradeItem<int> item;
+        std::string sellerName;
+        Offer() : item(), sellerName("") {}
+    };
+    Market();
+    void offerTrade(Kingdom& seller, const TradeItem<int>& item);
+    bool acceptTrade(Kingdom& buyer, Kingdom& seller, int offerIndex);
+    bool smuggle(Kingdom& smuggler, Kingdom& receiver, const TradeItem<int>& item);
+    void displayMarket() const;
+    bool saveMarketLog(const std::string& filename) const;
+private:
 
+    Offer offers[50];
+    int offerCount;
+};
 class Leader {
 private:
     std::string name;
@@ -335,6 +455,8 @@ private:
     int numEvents;
     int maxEvents;
     int turn;
+    int mapX; // Added for Map class
+    int mapY; // Added for Map class
 
 public:
     Kingdom(const std::string& name);
@@ -348,6 +470,9 @@ public:
     Leader* getLeader() const;
     Resource& getResource(const std::string& name);
     int getTurn() const;
+    void setMapPosition(int x, int y); // Added for Map class
+    int getMapX() const; // Added for Map class
+    int getMapY() const; // Added for Map class
 
     void initialize();
     void simulateTurn();
@@ -370,20 +495,10 @@ public:
 };
 
 class GameEngine {
-private:
-    Kingdom* playerKingdom;
-    char** gameLog;
-    int logSize;
-    int maxLogSize;
-    int gameDifficulty;
-    int maxTurns;
-    bool isRunning;
-
 public:
-    GameEngine(int difficulty = 1, int turns = 100);
+    GameEngine(int difficulty, int maxTurns);
     ~GameEngine();
-
-    void initialize();
+    void initialize(int playerKingdomIdx);
     void mainLoop();
     void processInput(const std::string& input);
     void update();
@@ -393,9 +508,27 @@ public:
     bool loadGame(const std::string& filename);
     void displayHelp() const;
     void addToLog(const std::string& message);
-
     bool running() const;
     void quit();
+private:
+    Kingdom* kingdoms[3];
+    int playerKingdomIdx;
+    int difficulty;
+    int maxTurns;
+    bool isRunning;
+    char** gameLog;
+    int logSize;
+    int maxLogSize;
+    Communication comm;
+    Alliance alliance;
+    Market market;
+    Conflict conflict;
+    Map gameMap;
 };
+
+
+
+
+
 
 #endif
